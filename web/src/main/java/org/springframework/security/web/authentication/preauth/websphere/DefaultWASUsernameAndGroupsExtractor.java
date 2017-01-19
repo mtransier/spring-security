@@ -7,14 +7,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
-import javax.rmi.PortableRemoteObject;
 import javax.security.auth.Subject;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import com.ibm.wsspi.security.registry.RegistryHelper;
 
 /**
  * WebSphere Security helper class to allow retrieval of the current username and groups.
@@ -41,10 +39,12 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	private static Class<?> wsCredentialClass = null;
 
 	public final List<String> getGroupsForCurrentUser() {
+
 		return getWebSphereGroups(getRunAsSubject());
 	}
 
 	public final String getCurrentUserName() {
+
 		return getSecurityName(getRunAsSubject());
 	}
 
@@ -55,6 +55,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	 * @return String the security name for the given subject
 	 */
 	private static String getSecurityName(final Subject subject) {
+
 		if (logger.isDebugEnabled()) {
 			logger.debug("Determining Websphere security name for subject " + subject);
 		}
@@ -81,6 +82,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	 * @return Subject the current RunAs subject
 	 */
 	private static Subject getRunAsSubject() {
+
 		logger.debug("Retrieving WebSphere RunAs subject");
 		// get Subject: WSSubject.getCallerSubject ();
 		return (Subject) invokeMethod(getRunAsSubjectMethod(), null, new Object[] {});
@@ -93,6 +95,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	 * @return the WebSphere group names for the given subject
 	 */
 	private static List<String> getWebSphereGroups(final Subject subject) {
+
 		return getWebSphereGroups(getSecurityName(subject));
 	}
 
@@ -105,13 +108,11 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	 */
 	@SuppressWarnings("unchecked")
 	private static List<String> getWebSphereGroups(final String securityName) {
-		Context ic = null;
+
 		try {
 			// TODO: Cache UserRegistry object
-			ic = new InitialContext();
-			Object objRef = ic.lookup(USER_REGISTRY);
-			Object userReg = PortableRemoteObject.narrow(objRef,
-					Class.forName("com.ibm.websphere.security.UserRegistry"));
+			// TODO: add indirection to get rid of WAS SPI dependency
+			Object userReg = RegistryHelper.getUserRegistry(null);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Determining WebSphere groups for user " + securityName
 						+ " using WebSphere UserRegistry " + userReg);
@@ -129,19 +130,10 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 			throw new RuntimeException(
 					"Exception occured while looking up groups for user", e);
 		}
-		finally {
-			try {
-				if (ic != null) {
-					ic.close();
-				}
-			}
-			catch (NamingException e) {
-				logger.debug("Exception occured while closing context", e);
-			}
-		}
 	}
 
 	private static Object invokeMethod(Method method, Object instance, Object[] args) {
+
 		try {
 			return method.invoke(instance, args);
 		}
@@ -170,6 +162,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 
 	private static Method getMethod(String className, String methodName,
 			String[] parameterTypeNames) {
+
 		try {
 			Class<?> c = Class.forName(className);
 			final int len = parameterTypeNames.length;
@@ -192,6 +185,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	}
 
 	private static Method getRunAsSubjectMethod() {
+
 		if (getRunAsSubject == null) {
 			getRunAsSubject = getMethod("com.ibm.websphere.security.auth.WSSubject",
 					"getRunAsSubject", new String[] {});
@@ -200,6 +194,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	}
 
 	private static Method getGroupsForUserMethod() {
+
 		if (getGroupsForUser == null) {
 			getGroupsForUser = getMethod("com.ibm.websphere.security.UserRegistry",
 					"getGroupsForUser", new String[] { "java.lang.String" });
@@ -208,6 +203,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	}
 
 	private static Method getSecurityNameMethod() {
+
 		if (getSecurityName == null) {
 			getSecurityName = getMethod("com.ibm.websphere.security.cred.WSCredential",
 					"getSecurityName", new String[] {});
@@ -217,6 +213,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 
 	// SEC-803
 	private static Class<?> getWSCredentialClass() {
+
 		if (wsCredentialClass == null) {
 			wsCredentialClass = getClass("com.ibm.websphere.security.cred.WSCredential");
 		}
@@ -224,6 +221,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 	}
 
 	private static Class<?> getClass(String className) {
+
 		try {
 			return Class.forName(className);
 		}
