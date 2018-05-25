@@ -111,6 +111,7 @@ final class DefaultWASUsernameAndGroupsExtractor implements WASUsernameAndGroups
 
 		try {
 			// TODO: Cache UserRegistry object
+			// TODO: add indirection to get rid of WAS SPI dependency
 			Object userReg = RegistryHelper.getUserRegistry(null);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Determining WebSphere groups for user " + securityName
